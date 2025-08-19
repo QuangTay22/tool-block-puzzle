@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Block Blast — UI + Solver (Worker)</title>
+  <style>
+    /* Giữ nguyên toàn bộ CSS như bản của bạn */
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Block Blast — UI + Solver</h1>
+    <p class="sub">Solver chạy trong Web Worker. Khi hàng/cột đầy sẽ chuyển sang màu vàng 🟨 rồi biến mất ở lượt tiếp theo.</p>
+
+    <div class="row cols-2">
+      <div class="card">
+        <div class="section-title">Bàn 8×8</div>
+        <div id="grid8" class="grid8"></div>
+        <div class="bar">
+          <button class="btn" id="solveBtn">Solve</button>
+          <button class="btn" id="fastSolveBtn">Solve nhanh</button>
+          <button class="btn-ghost" id="stepBtn">Step-by-step</button>
+          <button class="btn-ghost" id="clearGrid">Clear grid</button>
+          <button class="btn-danger" id="resetAll">Reset tất cả</button>
+        </div>
+        <div class="legend">
+          <span><span class="dot d-grid"></span>Ô đã có gạch</span>
+          <span><span class="dot d-empty"></span>Ô trống</span>
+          <span><span class="dot d-piece1"></span>Figure 1</span>
+          <span><span class="dot d-piece2"></span>Figure 2</span>
+          <span><span class="dot d-piece3"></span>Figure 3</span>
+          <span><span class="dot" style="background:#facc15"></span>Cleared (vàng)</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">3 khối 5×5</div>
+        <!-- giữ nguyên fig1, fig2, fig3 + preset như code trước -->
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="section-title">Kết quả</div>
+      <div id="status" class="status">Chưa chạy.</div>
+    </div>
+  </div>
+
+  <script>
+    // buildGrid, toggleCell, applyPreset ... giữ nguyên như code cũ của bạn
+
+    // worker
+    const worker = new Worker("solver-worker.js")
+
+    function sendToWorker(type){
+      const board = readBoard()
+      const shapes = [ readFigure(fig1), readFigure(fig2), readFigure(fig3) ]
+      const allowRot = document.getElementById('allowRot').checked
+      document.getElementById('status').innerText = 'Đang tính...'
+      const t0 = performance.now()
+      worker.postMessage({ type, board, shapes, allowRot, t0 })
+    }
+
+    worker.onmessage = (ev)=>{
+      const { type, res, t0, t1 } = ev.data
+      if(!res){ document.getElementById('status').innerText = 'Không tìm được phương án.'; return }
+      if(type==="solve"){
+        document.getElementById('status').innerHTML = 
+          `Tổng dòng/cols xoá: <b>${res.totalCleared||0}</b> • Thời gian: <b>${(t1-t0).toFixed(1)}ms</b>`
+        drawToMainBoard(res.steps||[])
+        setTimeout(()=> removeClearedVisual(), 1600)
+      }
+      if(type==="fastSolve"){
+        document.getElementById('status').innerHTML = 
+          `[Nhanh] Tổng xoá: <b>${res.totalCleared||0}</b> • ${(t1-t0).toFixed(1)}ms`
+        drawToMainBoard(res.steps||[])
+        setTimeout(()=> removeClearedVisual(), 1600)
+      }
+      if(type==="stepSolve"){
+        // giống stepBtn cũ → phát từng bước
+        async function play(){
+          clearMainVisual()
+          for(let i=0;i<(res.steps?.length||0);i++){
+            const s = res.steps[i]
+            s.shape.forEach(([x,y])=>{
+              const gx=s.ox+x, gy=s.oy+y
+              grid8[gy*8+gx].classList.add('on','piece'+s.shapeId)
+            })
+            if(s.fullRows) s.fullRows.forEach(r=>{ for(let c=0;c<8;c++) grid8[r*8+c].classList.add('cleared') })
+            if(s.fullCols) s.fullCols.forEach(col=>{ for(let r=0;r<8;r++) grid8[r*8+col].classList.add('cleared') })
+            await new Promise(r=>setTimeout(r,550))
+          }
+          setTimeout(()=> removeClearedVisual(), 900)
+          document.getElementById('status').innerText = `Phát xong — tổng xoá: ${res.totalCleared||0}`
+        }
+        play()
+      }
+    }
+
+    // nút bấm
+    document.getElementById('solveBtn').onclick = ()=> sendToWorker("solve")
+    document.getElementById('fastSolveBtn').onclick = ()=> sendToWorker("fastSolve")
+    document.getElementById('stepBtn').onclick = ()=> sendToWorker("stepSolve")
+  </script>
+</body>
+</html>
