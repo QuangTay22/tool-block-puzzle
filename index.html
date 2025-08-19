@@ -3,15 +3,67 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Block Blast — UI + Solver (Worker)</title>
+  <title>Block Blast — UI + Solver</title>
   <style>
-    /* Giữ nguyên toàn bộ CSS như bản của bạn */
+    :root{
+      --bg:#f6f7fb;--card:#fff;--ink:#111;--muted:#6b7280;--primary:#6d28d9;--primary-2:#7c3aed;--grid:#e5e7eb;--warn:#ef4444
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(135deg,#eef2ff,#fdf2f8);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:var(--ink)}
+    .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+    h1{font-size:28px;margin:0 0 12px;letter-spacing:.2px}
+    .sub{color:var(--muted);margin-bottom:24px}
+    .row{display:grid;gap:16px}
+    .cols-2{grid-template-columns:460px 1fr}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 6px 22px rgba(0,0,0,.06);padding:18px}
+    .section-title{font-weight:700;margin-bottom:10px}
+    .grid8{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;width:380px;height:380px;margin:8px auto}
+    .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:148px;height:148px}
+    .cell{border-radius:4px;background:#e9edfd;border:1px solid var(--grid);cursor:pointer;transition:.3s}
+    .cell.on{box-shadow:inset 2px 2px 0 rgba(255,255,255,.5), inset -2px -2px 0 rgba(14,34,102,.08)}
+
+    /* Màu riêng cho từng khối (khu vẽ 5×5) */
+    #fig1 .cell.on {background:#ff7620;} /* cam */
+    #fig2 .cell.on {background:#22c55e;} /* xanh lá */
+    #fig3 .cell.on {background:#ec4899;} /* hồng */
+
+    /* Màu trên bàn chính */
+    .piece1{background:#ff7620 !important}
+    .piece2{background:#22c55e !important}
+    .piece3{background:#ec4899 !important}
+    .cleared{background:#facc15 !important; opacity:1;}
+    .fadeout{opacity:0; transition:opacity 0.8s ease-out;}
+
+    .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    button{border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+    .btn{background:#6d28d9;color:#fff}
+    .btn:hover{background:#7c3aed}
+    .btn-ghost{background:#fff;border:1px solid #d1d5db;color:#374151}
+    .btn-danger{background:var(--warn);color:#fff}
+    .mini{font-size:12px;color:var(--muted)}
+    .figs{display:flex;gap:16px;justify-content:center}
+    .fig{display:flex;flex-direction:column;align-items:center;gap:8px}
+    label{font-size:14px;color:#374151}
+    .tool{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+    .legend{display:flex;gap:10px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+    .dot{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:6px}
+    .d-empty{background:#e9edfd;border:1px solid #dbe1ff}
+    .d-grid{background:#7180ff}
+    .d-piece1{background:#ff7620}
+    .d-piece2{background:#22c55e}
+    .d-piece3{background:#ec4899}
+    .status{margin:8px 0 0;color:#374151}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f3f4f6;padding:2px 6px;border-radius:6px;border:1px solid #e5e7eb}
+    .switch{display:inline-flex;gap:8px;align-items:center}
+    input[type="checkbox"]{width:16px;height:16px}
+    .small{font-size:12px;color:#6b7280}
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Block Blast — UI + Solver</h1>
-    <p class="sub">Solver chạy trong Web Worker. Khi hàng/cột đầy sẽ chuyển sang màu vàng 🟨 rồi biến mất ở lượt tiếp theo.</p>
+    <p class="sub">Solver đặt trực tiếp lên bàn chính. Hàng/cột đầy sẽ vàng 🟨 rồi biến mất ở lượt sau.</p>
 
     <div class="row cols-2">
       <div class="card">
@@ -30,13 +82,48 @@
           <span><span class="dot d-piece1"></span>Figure 1</span>
           <span><span class="dot d-piece2"></span>Figure 2</span>
           <span><span class="dot d-piece3"></span>Figure 3</span>
-          <span><span class="dot" style="background:#facc15"></span>Cleared (vàng)</span>
+          <span><span class="dot" style="background:#facc15"></span>Cleared</span>
         </div>
       </div>
 
       <div class="card">
         <div class="section-title">3 khối 5×5</div>
-        <!-- giữ nguyên fig1, fig2, fig3 + preset như code trước -->
+        <div class="tool">
+          <label class="switch"><input type="checkbox" id="allowRot" checked> Cho phép xoay 90°</label>
+          <span class="small">Mẹo: giữ <span class="kbd">Shift</span> khi click để tô/xoá một vệt.</span>
+        </div>
+        <div class="figs">
+          <div class="fig">
+            <label>Figure 1</label>
+            <div id="fig1" class="grid5"></div>
+            <div class="bar">
+              <button class="btn-ghost" data-fill="I" data-target="fig1">I</button>
+              <button class="btn-ghost" data-fill="L" data-target="fig1">L</button>
+              <button class="btn-ghost" data-fill="T" data-target="fig1">T</button>
+            </div>
+          </div>
+          <div class="fig">
+            <label>Figure 2</label>
+            <div id="fig2" class="grid5"></div>
+            <div class="bar">
+              <button class="btn-ghost" data-fill="O" data-target="fig2">O</button>
+              <button class="btn-ghost" data-fill="S" data-target="fig2">S</button>
+              <button class="btn-ghost" data-fill="Z" data-target="fig2">Z</button>
+            </div>
+          </div>
+          <div class="fig">
+            <label>Figure 3</label>
+            <div id="fig3" class="grid5"></div>
+            <div class="bar">
+              <button class="btn-ghost" data-fill="DOT3" data-target="fig3">3-dot</button>
+              <button class="btn-ghost" data-fill="DOT2" data-target="fig3">2-dot</button>
+              <button class="btn-ghost" data-fill="CLEAR" data-target="fig3">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="bar" style="margin-top:8px">
+          <button class="btn-ghost" id="clearFigs">Clear 3 khối</button>
+        </div>
       </div>
     </div>
 
@@ -47,60 +134,146 @@
   </div>
 
   <script>
-    // buildGrid, toggleCell, applyPreset ... giữ nguyên như code cũ của bạn
+    // build grids
+    function buildGrid(el, rows, cols){
+      el.innerHTML=''
+      const cells=[]
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const d=document.createElement('div')
+          d.className='cell'
+          d.dataset.r=r; d.dataset.c=c
+          el.appendChild(d)
+          cells.push(d)
+        }
+      }
+      return cells
+    }
+    const grid8 = buildGrid(document.getElementById('grid8'),8,8)
+    const fig1 = buildGrid(document.getElementById('fig1'),5,5)
+    const fig2 = buildGrid(document.getElementById('fig2'),5,5)
+    const fig3 = buildGrid(document.getElementById('fig3'),5,5)
 
-    // worker
-    const worker = new Worker("solver-worker.js")
+    // toggle
+    function toggleCell(ev){
+      const el=ev.target
+      if(!el.classList.contains('cell')) return
+      el.classList.toggle('on')
+      el.classList.remove('piece1','piece2','piece3','cleared','fadeout')
+    }
+    document.getElementById('grid8').addEventListener('click',toggleCell)
+    document.getElementById('fig1').addEventListener('click',toggleCell)
+    document.getElementById('fig2').addEventListener('click',toggleCell)
+    document.getElementById('fig3').addEventListener('click',toggleCell)
 
-    function sendToWorker(type){
-      const board = readBoard()
-      const shapes = [ readFigure(fig1), readFigure(fig2), readFigure(fig3) ]
-      const allowRot = document.getElementById('allowRot').checked
-      document.getElementById('status').innerText = 'Đang tính...'
-      const t0 = performance.now()
-      worker.postMessage({ type, board, shapes, allowRot, t0 })
+    // presets
+    const presets={ I:[[0,0],[1,0],[2,0],[3,0]],
+      L:[[0,0],[0,1],[0,2],[1,2]],
+      T:[[0,0],[1,0],[2,0],[1,1]],
+      O:[[0,0],[1,0],[0,1],[1,1]],
+      S:[[1,0],[2,0],[0,1],[1,1]],
+      Z:[[0,0],[1,0],[1,1],[2,1]],
+      DOT3:[[0,0],[1,0],[2,0]],
+      DOT2:[[0,0],[1,0]],
+      CLEAR:[]
+    }
+    function applyPreset(targetId,key){
+      const root=document.getElementById(targetId)
+      ;[...root.children].forEach(c=>c.classList.remove('on'))
+      presets[key].forEach(([x,y])=>{
+        const idx=y*5+x
+        root.children[idx]?.classList.add('on')
+      })
+    }
+    document.querySelectorAll('[data-fill]').forEach(btn=>{
+      btn.addEventListener('click',()=>applyPreset(btn.dataset.target,btn.dataset.fill))
+    })
+
+    // read functions
+    function readBoard(){
+      const a=[]
+      for(let r=0;r<8;r++){
+        const row=[]
+        for(let c=0;c<8;c++){
+          row.push(grid8[r*8+c].classList.contains('on')?1:0)
+        }
+        a.push(row)
+      }
+      return a
+    }
+    function readFigure(figRoot){
+      const pts=[]
+      for(let y=0;y<5;y++) for(let x=0;x<5;x++)
+        if(figRoot[y*5+x].classList.contains('on')) pts.push([x,y])
+      return pts
     }
 
-    worker.onmessage = (ev)=>{
-      const { type, res, t0, t1 } = ev.data
-      if(!res){ document.getElementById('status').innerText = 'Không tìm được phương án.'; return }
-      if(type==="solve"){
-        document.getElementById('status').innerHTML = 
-          `Tổng dòng/cols xoá: <b>${res.totalCleared||0}</b> • Thời gian: <b>${(t1-t0).toFixed(1)}ms</b>`
-        drawToMainBoard(res.steps||[])
-        setTimeout(()=> removeClearedVisual(), 1600)
-      }
-      if(type==="fastSolve"){
-        document.getElementById('status').innerHTML = 
-          `[Nhanh] Tổng xoá: <b>${res.totalCleared||0}</b> • ${(t1-t0).toFixed(1)}ms`
-        drawToMainBoard(res.steps||[])
-        setTimeout(()=> removeClearedVisual(), 1600)
-      }
+    // draw results
+    function clearMainVisual(){ grid8.forEach(c=>c.className='cell') }
+    function drawToMainBoard(steps){
+      clearMainVisual()
+      steps.forEach(s=>{
+        s.shape.forEach(([x,y])=>{
+          const gx=s.ox+x, gy=s.oy+y
+          const el=grid8[gy*8+gx]
+          el.classList.add('on','piece'+s.shapeId)
+        })
+      })
+      steps.forEach(s=>{
+        if(s.fullRows) s.fullRows.forEach(r=>{ for(let c=0;c<8;c++) grid8[r*8+c].classList.add('cleared') })
+        if(s.fullCols) s.fullCols.forEach(col=>{ for(let r=0;r<8;r++) grid8[r*8+col].classList.add('cleared') })
+      })
+    }
+    function removeClearedVisual(){
+      const clearedCells=[...grid8].filter(c=>c.classList.contains('cleared'))
+      clearedCells.forEach(c=>c.classList.add('fadeout'))
+      setTimeout(()=>{ clearedCells.forEach(c=>c.classList.remove('fadeout','cleared','on','piece1','piece2','piece3')) },900)
+    }
+
+    // clear/reset
+    document.getElementById('clearGrid').onclick=()=>grid8.forEach(c=>c.className='cell')
+    document.getElementById('clearFigs').onclick=()=>[fig1,fig2,fig3].forEach(f=>f.forEach(c=>c.classList.remove('on')))
+    document.getElementById('resetAll').onclick=()=>{ document.getElementById('clearGrid').onclick(); document.getElementById('clearFigs').onclick() }
+
+    // --- Web Worker ---
+    const worker=new Worker('solver-worker.js')
+    worker.onmessage=(ev)=>{
+      const {type,res,t0,t1}=ev.data
+      if(!res){ document.getElementById('status').innerText='Không tìm được phương án.'; return }
       if(type==="stepSolve"){
-        // giống stepBtn cũ → phát từng bước
-        async function play(){
-          clearMainVisual()
+        document.getElementById('status').innerText='Đang phát từng bước...'
+        clearMainVisual()
+        ;(async()=>{
           for(let i=0;i<(res.steps?.length||0);i++){
-            const s = res.steps[i]
+            const s=res.steps[i]
             s.shape.forEach(([x,y])=>{
               const gx=s.ox+x, gy=s.oy+y
               grid8[gy*8+gx].classList.add('on','piece'+s.shapeId)
             })
             if(s.fullRows) s.fullRows.forEach(r=>{ for(let c=0;c<8;c++) grid8[r*8+c].classList.add('cleared') })
             if(s.fullCols) s.fullCols.forEach(col=>{ for(let r=0;r<8;r++) grid8[r*8+col].classList.add('cleared') })
-            await new Promise(r=>setTimeout(r,550))
+            await new Promise(resv=>setTimeout(resv,550))
           }
-          setTimeout(()=> removeClearedVisual(), 900)
-          document.getElementById('status').innerText = `Phát xong — tổng xoá: ${res.totalCleared||0}`
-        }
-        play()
+          setTimeout(()=>removeClearedVisual(),900)
+          document.getElementById('status').innerText=`Phát xong — tổng xoá: ${res.totalCleared||0}`
+        })()
+      } else {
+        document.getElementById('status').innerHTML=`Tổng xoá: <b>${res.totalCleared||0}</b> • ${(t1-t0).toFixed(1)}ms`
+        drawToMainBoard(res.steps||[])
+        setTimeout(()=>removeClearedVisual(),1600)
       }
     }
 
-    // nút bấm
-    document.getElementById('solveBtn').onclick = ()=> sendToWorker("solve")
-    document.getElementById('fastSolveBtn').onclick = ()=> sendToWorker("fastSolve")
-    document.getElementById('stepBtn').onclick = ()=> sendToWorker("stepSolve")
+    function runSolver(mode){
+      const board=readBoard()
+      const shapes=[readFigure(fig1),readFigure(fig2),readFigure(fig3)]
+      const allowRot=document.getElementById('allowRot').checked
+      worker.postMessage({type:mode,board,shapes,allowRot,t0:performance.now()})
+    }
+
+    document.getElementById('solveBtn').onclick=()=>runSolver("solve")
+    document.getElementById('fastSolveBtn').onclick=()=>runSolver("fastSolve")
+    document.getElementById('stepBtn').onclick=()=>runSolver("stepSolve")
   </script>
 </body>
 </html>
