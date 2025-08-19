@@ -42,7 +42,7 @@
     .btn-ghost{background:#fff;border:1px solid #d1d5db;color:#374151}
     .btn-danger{background:var(--warn);color:#fff}
     .mini{font-size:12px;color:var(--muted)}
-    .figs{display:flex;gap:16px;justify-content:center}
+    .figs{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
     .fig{display:flex;flex-direction:column;align-items:center;gap:8px}
     label{font-size:14px;color:#374151}
     .tool{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
@@ -91,35 +91,60 @@
         <div class="tool">
           <label class="switch"><input type="checkbox" id="allowRot" checked> Cho phép xoay 90°</label>
         </div>
+
         <div class="figs">
+          <!-- Reusable preset buttons for all figures -->
+          <script>
+            const allPresets = [
+              "I","L","T","O","S","Z",
+              "DOT2","DOT3","DOT4_H","DOT4_V","DOT5_H","DOT5_V",
+              "L3_3_UP","L3_3_DOWN","L3_3_LEFT","L3_3_RIGHT",
+              "L3_2_UP","L3_2_DOWN","L3_2_LEFT","L3_2_RIGHT",
+              "Z3_2_UP","Z3_2_DOWN","Z3_2_LEFT","Z3_2_RIGHT",
+              "CLEAR"
+            ];
+          </script>
+
+          <!-- Figure 1 -->
           <div class="fig">
             <label>Figure 1</label>
             <div id="fig1" class="grid5"></div>
-            <div class="bar">
-              <button class="btn-ghost" data-fill="I" data-target="fig1">I</button>
-              <button class="btn-ghost" data-fill="L" data-target="fig1">L</button>
-              <button class="btn-ghost" data-fill="T" data-target="fig1">T</button>
+            <div class="bar" style="flex-wrap:wrap">
+              <script>
+                allPresets.forEach(p=>{
+                  document.write(`<button class="btn-ghost" data-fill="${p}" data-target="fig1">${p}</button>`);
+                })
+              </script>
             </div>
           </div>
+
+          <!-- Figure 2 -->
           <div class="fig">
             <label>Figure 2</label>
             <div id="fig2" class="grid5"></div>
-            <div class="bar">
-              <button class="btn-ghost" data-fill="O" data-target="fig2">O</button>
-              <button class="btn-ghost" data-fill="S" data-target="fig2">S</button>
-              <button class="btn-ghost" data-fill="Z" data-target="fig2">Z</button>
+            <div class="bar" style="flex-wrap:wrap">
+              <script>
+                allPresets.forEach(p=>{
+                  document.write(`<button class="btn-ghost" data-fill="${p}" data-target="fig2">${p}</button>`);
+                })
+              </script>
             </div>
           </div>
+
+          <!-- Figure 3 -->
           <div class="fig">
             <label>Figure 3</label>
             <div id="fig3" class="grid5"></div>
-            <div class="bar">
-              <button class="btn-ghost" data-fill="DOT3" data-target="fig3">3-dot</button>
-              <button class="btn-ghost" data-fill="DOT2" data-target="fig3">2-dot</button>
-              <button class="btn-ghost" data-fill="CLEAR" data-target="fig3">Clear</button>
+            <div class="bar" style="flex-wrap:wrap">
+              <script>
+                allPresets.forEach(p=>{
+                  document.write(`<button class="btn-ghost" data-fill="${p}" data-target="fig3">${p}</button>`);
+                })
+              </script>
             </div>
           </div>
         </div>
+
         <div class="bar" style="margin-top:8px">
           <button class="btn-ghost" id="clearFigs">Clear 3 khối</button>
         </div>
@@ -166,10 +191,34 @@
     document.getElementById('fig3').addEventListener('click',toggleCell)
 
     // presets
-    const presets={I:[[0,0],[1,0],[2,0],[3,0]],L:[[0,0],[0,1],[0,2],[1,2]],
-      T:[[0,0],[1,0],[2,0],[1,1]],O:[[0,0],[1,0],[0,1],[1,1]],
-      S:[[1,0],[2,0],[0,1],[1,1]],Z:[[0,0],[1,0],[1,1],[2,1]],
-      DOT3:[[0,0],[1,0],[2,0]],DOT2:[[0,0],[1,0]],CLEAR:[]}
+    const presets={
+      DOT2:[[0,0],[1,0]],
+      DOT3:[[0,0],[1,0],[2,0]],
+      DOT4_H:[[0,0],[1,0],[2,0],[3,0]],
+      DOT4_V:[[0,0],[0,1],[0,2],[0,3]],
+      DOT5_H:[[0,0],[1,0],[2,0],[3,0],[4,0]],
+      DOT5_V:[[0,0],[0,1],[0,2],[0,3],[0,4]],
+      L3_3_UP:[[0,0],[0,1],[0,2],[1,2],[2,2]],
+      L3_3_DOWN:[[2,0],[2,1],[2,2],[1,0],[0,0]],
+      L3_3_LEFT:[[0,0],[1,0],[2,0],[0,1],[0,2]],
+      L3_3_RIGHT:[[0,2],[1,2],[2,2],[2,0],[2,1]],
+      L3_2_UP:[[0,0],[0,1],[0,2],[1,0],[2,0]],
+      L3_2_DOWN:[[0,0],[1,0],[2,0],[2,1],[2,2]],
+      L3_2_LEFT:[[0,0],[1,0],[2,0],[0,1],[0,2]],
+      L3_2_RIGHT:[[0,2],[1,2],[2,2],[0,0],[0,1]],
+      Z3_2_UP:[[0,0],[1,0],[1,1],[2,1]],
+      Z3_2_DOWN:[[0,1],[1,1],[1,0],[2,0]],
+      Z3_2_LEFT:[[0,0],[0,1],[1,1],[1,2]],
+      Z3_2_RIGHT:[[1,0],[1,1],[0,1],[0,2]],
+      I:[[0,0],[1,0],[2,0],[3,0]],
+      L:[[0,0],[0,1],[0,2],[1,2]],
+      T:[[0,0],[1,0],[2,0],[1,1]],
+      O:[[0,0],[1,0],[0,1],[1,1]],
+      S:[[1,0],[2,0],[0,1],[1,1]],
+      Z:[[0,0],[1,0],[1,1],[2,1]],
+      CLEAR:[]
+    }
+
     function applyPreset(targetId,key){
       const root=document.getElementById(targetId)
       ;[...root.children].forEach(c=>c.classList.remove('on'))
@@ -204,7 +253,7 @@
       return pts
     }
 
-    // keep existing cells, only add solver placements
+    // draw to main board
     function drawToMainBoard(steps){
       steps.forEach(s=>{
         s.shape.forEach(([x,y])=>{
